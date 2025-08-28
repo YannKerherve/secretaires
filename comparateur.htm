@@ -1,0 +1,127 @@
+<!-- Created: 26/08/2025 by Yann Kerhervé -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparateur de Manuels</title>
+    <link rel="icon" type="image/png" href="facion.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px;
+            background-color: #fff;
+            border-bottom: 2px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .comparateur-container {
+            display: flex;
+            flex: 1;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .pdf-viewer-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .pdf-title {
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .pdf-viewer {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .message {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Comparateur de Manuels</h1>
+    </header>
+
+    <div class="comparateur-container" id="comparateur-container">
+        <div class="pdf-viewer-wrapper">
+            <div class="pdf-title" id="title-1">Chargement de l'ouvrage 1...</div>
+            <iframe id="pdf-viewer-1" class="pdf-viewer"></iframe>
+        </div>
+        <div class="pdf-viewer-wrapper">
+            <div class="pdf-title" id="title-2">Chargement de l'ouvrage 2...</div>
+            <iframe id="pdf-viewer-2" class="pdf-viewer"></iframe>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const ouvrage1 = params.get('ouvrage1');
+            const ouvrage2 = params.get('ouvrage2');
+
+            const viewer1 = document.getElementById('pdf-viewer-1');
+            const viewer2 = document.getElementById('pdf-viewer-2');
+            const title1 = document.getElementById('title-1');
+            const title2 = document.getElementById('title-2');
+
+            // Set up viewer for ouvrage 1
+            if (ouvrage1) {
+                viewer1.src = ouvrage1;
+                title1.textContent = ouvrage1; // Display the filename as the title
+            } else {
+                title1.textContent = "Aucun ouvrage sélectionné";
+                viewer1.style.display = 'none';
+            }
+
+            // Set up viewer for ouvrage 2
+            if (ouvrage2) {
+                viewer2.src = ouvrage2;
+                title2.textContent = ouvrage2; // Display the filename as the title
+            } else {
+                title2.textContent = "Aucun ouvrage sélectionné";
+                viewer2.style.display = 'none';
+            }
+
+            // Optional: You can fetch the full titles from your data if needed
+            // For now, it just displays the filenames as titles.
+        });
+    </script>
+
+</body>
+</html>

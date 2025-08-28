@@ -1,0 +1,115 @@
+<!-- Created: 28/08/2025 by Yann Kerhervé -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact & Aide</title>
+    <link rel="icon" type="image/png" href="facion.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #555;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        a.button {
+            display: inline-block;
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        a.button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Contact & Aide</h1>
+
+        <section>
+            <h2>Crédits</h2>
+            <ul>
+                <li><strong>Idée / Réalisation :</strong> A. Kerhervé</li>
+                <li><strong>Développement technique :</strong> Y. Kerhervé</li>
+                <li><strong>Contact :</strong>
+                    <a href="mailto:alain.kerherve@univ-brest.fr">A. Kerhervé</a> ; <a href="https://github.com/YannKerherve" target="_blank">Y. Kerhervé</a>
+                    <br>
+
+                </li>
+                <li><strong>Laboratoire de recherche :</strong>
+                    <a href="https://www.univ-brest.fr/hcti/fr" target="_blank">HCTI (Héritages et Créations dans le Texte et l'Image)</a>
+                </li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <section>
+            <h2>Aide</h2>
+            <p><strong>Pour ajouter un ouvrage à la base de données :</strong></p>
+            <ol>
+                <li>
+                    Remplissez le fichier Excel de correspondance (nom / titre / auteur / date / édition / pays) avec le nouvel ouvrage en plus des autres.
+                    <br><a href="secretaires.xlsx" class="button">Télécharger l'Excel</a>
+                </li>
+                <li>
+                    Utilisez le micrologiciel pour transformer le tableau Excel en un format de couple comme ci-dessous :
+                    <pre>
+book = {
+    "title": titre,
+    "author": auteur,
+    "date": str(date),
+    "filename": nom_pdf,
+    "edition": edition,
+    "pays": pays,
+}
+                    </pre>
+                    <a href="listeur_v2.0.exe" class="button">Télécharger le micrologiciel</a>
+                </li>
+                <li>
+                    Copiez la sortie du micrologiciel et remplacez celle existante dans le fichier <code>index.htm</code> sur le serveur du site web. L'information existante se trouve à la ligne 266.
+                    <br><a href="#" class="button">Se connecter au serveur</a>
+                </li>
+                <li>Faites attention à ne pas avoir de répétition de « [ » ou « ] » au début et à la fin.</li>
+                <li>Enregistrez le fichier <code>index.htm</code>.</li>
+                <li>Ajoutez le nouveau PDF au dossier du serveur en vous assurant qu'il est nommé exactement comme dans le fichier Excel (et sans espaces !).</li>
+                <li>Remplacez le fichier Excel de sauvegarde par votre nouvelle version.</li>
+                <li>
+                    Faites l'OCR du PDF à l'aide de l'ocrisateur.
+                    <br><a href="ocristeur.htm" class="button">Aller à l'ocrisateur</a>
+                </li>
+                <li>Ajoutez le contenu à la base de données CSV sur le serveur (<code>data.csv</code>).</li>
+                <li>Et voilà, c'est fait ! Bravo !</li>
+            </ol>
+        </section>
+    </div>
+
+</body>
+</html>
