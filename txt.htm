@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détails du Manuel</title>
+    <link rel="icon" type="image/png" href="facion.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #444;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .content-box {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            line-height: 1.6;
+        }
+
+        .page-header {
+            font-weight: bold;
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+
+        .error-message {
+            text-align: center;
+            color: #d9534f;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 id="manualTitle">Chargement...</h1>
+        <div id="contentContainer">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const filename = params.get('pdf');
+
+            const titleElement = document.getElementById('manualTitle');
+            const contentContainer = document.getElementById('contentContainer');
+
+            if (!filename) {
+                titleElement.textContent = "Erreur : Aucun fichier spécifié.";
+                return;
+            }
+
+            titleElement.textContent = `Contenu du manuel : ${filename}`;
+
+            // --- DEBUT : SIMULATION DU FICHIER CSV ---
+            // Remplacez ce bloc par une requête `fetch` vers votre fichier data.csv
+            //const mockCsvData = [
+            //    '1.pdf;"Première page du manuel 1.pdf. Ce texte est un exemple de contenu de page.";"Deuxième page du manuel 1.pdf. Il s\'agit d\'une autre section du livre.";"Troisième page de ce livre. La fin."',
+            //    '2.pdf;"Contenu de la page 1 du manuel 2.pdf.";"Page 2 du manuel 2.pdf.";"Page 3 du manuel 2.pdf."',
+            //    'autre_manuel.pdf;"Contenu du premier manuel...";"Suite du contenu..."'
+            //].join('\n');
+            // --- FIN : SIMULATION DU FICHIER CSV ---
+
+            // Pour utiliser un vrai fichier, remplacez le bloc ci-dessus par :
+              fetch('data.csv')
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Le fichier data.csv n\'a pas pu être chargé.');
+                      }
+                      return response.text();
+                  })
+                  .then(csvData => {
+                      processData(csvData);
+                  })
+                  .catch(error => {
+                      titleElement.textContent = `Erreur de chargement : ${error.message}`;
+                      console.error(error);
+                  });
+
+
+            function processData(csvString) {
+                const rows = csvString.trim().split('\n');
+                let found = false;
+
+                for (const row of rows) {
+                    // MODIFICATION ICI :
+                    // Ancienne ligne (pour les virgules) : const columns = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    // Nouvelle ligne (pour les points-virgules) :
+                    const columns = row.split(/;(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+
+                    const rowFilename = columns[0].replace(/"/g, ''); // Nettoyer les guillemets si présents
+
+                    if (rowFilename === filename) {
+                        found = true;
+                        // Afficher chaque page (chaque colonne du CSV)
+                        for (let i = 1; i < columns.length; i++) {
+                            const pageContent = columns[i].replace(/"/g, '').trim(); // Nettoyer et enlever les espaces
+
+                            const box = document.createElement('div');
+                            box.className = 'content-box';
+                            box.innerHTML = `<div class="page-header">Page ${i}</div><p>${pageContent}</p>`;
+                            contentContainer.appendChild(box);
+                        }
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    contentContainer.innerHTML = '<div class="error-message">Aucun contenu trouvé pour ce fichier.</div>';
+                }
+            }
+
+            // Exécute la fonction de traitement avec les données simulées
+            processData(mockCsvData);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!-- Created: 26/08/2025 by Yann Kerhervé -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche Avancée</title>
+    <link rel="icon" type="image/png" href="facion.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #444;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-controls input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .tolerance-slider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tolerance-slider label {
+            font-weight: bold;
+        }
+
+        #tolerance {
+            width: 150px;
+        }
+
+        #results-container {
+            margin-top: 30px;
+        }
+
+        .result-item {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        .result-page {
+            margin-top: 5px;
+            color: #555;
+        }
+
+        .result-page a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .result-page a:hover {
+            text-decoration: underline;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #777;
+            font-style: italic;
+        }
+
+        @media (max-width: 600px) {
+            .search-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Recherche Avancée dans les Manuels</h1>
+        <div class="search-controls">
+            <input type="text" id="search-input" placeholder="Saisissez vos mots-clés...">
+            <div class="tolerance-slider">
+                <label for="tolerance">Tolérance d'erreur :</label>
+                <input type="range" id="tolerance" name="tolerance" min="0" max="100" value="0">
+                <span id="tolerance-value">0%</span>
+            </div>
+        </div>
+
+        <div id="results-container">
+            </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('search-input');
+        const toleranceSlider = document.getElementById('tolerance');
+        const toleranceValueSpan = document.getElementById('tolerance-value');
+        const resultsContainer = document.getElementById('results-container');
+        let data = []; // Déclare la variable pour stocker les données du CSV
+
+        // Fonction de recherche floue (Fuzzy Search)
+        function fuzzySearch(query, content, tolerance) {
+            if (!query) return false;
+
+            const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+            const contentWords = content.toLowerCase().split(/\s+/);
+
+            let foundWords = 0;
+            queryWords.forEach(qWord => {
+                if (contentWords.some(cWord => cWord.includes(qWord))) {
+                    foundWords++;
+                }
+            });
+
+            const matchPercentage = (foundWords / queryWords.length) * 100;
+            return matchPercentage >= (100 - tolerance);
+        }
+
+        // Fonction de rendu des résultats
+        function renderResults(results) {
+            resultsContainer.innerHTML = '';
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<p class="no-results">Aucun résultat trouvé pour cette recherche.</p>';
+                return;
+            }
+
+            results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    <div class="result-title">${result.title}</div>
+                    <div class="result-page">
+                        Trouvé sur ${result.page}.
+                        <a href="ocr.htm?pdf=${result.filename.split(';')[0]}&page=${result.page.split(' ')[4]}" target="_blank">Consulter ce manuel</a>
+                    </div>
+                `;
+                resultsContainer.appendChild(item);
+            });
+        }
+
+        // Fonction de traitement du CSV
+        function parseCSV(csvString) {
+            const lines = csvString.trim().split('\n');
+            return lines.map(line => {
+                const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                return columns.map(col => col.replace(/"/g, '').trim());
+            });
+        }
+
+        function performSearch() {
+            const query = searchInput.value.trim();
+            const tolerance = parseInt(toleranceSlider.value, 10);
+            const searchResults = new Set();
+
+            if (query.length === 0) {
+                renderResults([]);
+                return;
+            }
+
+            data.forEach(row => {
+                const filename = row[0];
+                const title = row[1];
+                for (let i = 2; i < row.length; i++) {
+                    const content = row[i];
+                    let resultPage = `la page ${i - 1}`;
+                    const combinedContent = (i < row.length - 1) ? content + ' ' + row[i + 1] : content;
+
+                    if (fuzzySearch(query, content, tolerance)) {
+                        searchResults.add(JSON.stringify({ filename, title, page: resultPage }));
+                    }
+
+                    if (fuzzySearch(query, combinedContent, tolerance) && i < row.length - 1) {
+                        resultPage = `les pages ${i - 1} et ${i}`;
+                        searchResults.add(JSON.stringify({ filename, title, page: resultPage }));
+                    }
+                }
+            });
+
+            const finalResults = Array.from(searchResults).map(item => JSON.parse(item));
+            renderResults(finalResults);
+        }
+
+        // Événements
+        searchInput.addEventListener('input', performSearch);
+        toleranceSlider.addEventListener('input', () => {
+            toleranceValueSpan.textContent = `${toleranceSlider.value}%`;
+            performSearch();
+        });
+
+        // Chargement du fichier CSV au démarrage
+        fetch('data.csv')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Le fichier data.csv n\'a pas pu être chargé.');
+                }
+                return response.text();
+            })
+            .then(csvText => {
+                data = parseCSV(csvText); // Stocke les données dans la variable `data`
+                performSearch(); // Exécute la recherche initiale une fois les données chargées
+            })
+            .catch(error => {
+                console.error(error);
+                resultsContainer.innerHTML = `<p class="no-results">Erreur de chargement des données : ${error.message}</p>`;
+            });
+    });
+</script>
+</body>
+</html>

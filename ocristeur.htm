@@ -1,0 +1,300 @@
+<!-- Created: 26/08/2025 by Yann Kerhervé -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocr-isateur</title>
+<style>
+  :root {
+    --bg: #0b1c48;
+    --panel: #0f255f;
+    --muted: #dbe4ff;
+    --accent: #74c0fc;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: var(--bg); color: white; }
+  header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+
+  .controls { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px 20px; align-items: center; }
+  .controls .group { background: var(--panel); padding: 10px 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px; }
+  label { font-size: 14px; opacity: .9; }
+  input[type="number"], select { border-radius: 10px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); color: white; padding: 6px 8px; min-width: 72px; }
+  input[type="range"] { accent-color: var(--accent); }
+  button { background: var(--accent); color: #00243f; border: none; padding: 8px 12px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+
+  .split { display: grid; grid-template-columns: 40% 60%; gap: 12px; padding: 12px 20px 24px; height: calc(100vh - 180px); }
+  .panel { background: var(--panel); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+
+  .panel h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 14px; letter-spacing: .3px; color: var(--muted); }
+  .panel .body { padding: 10px; overflow: auto; flex: 1; }
+
+  #ocrText { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 14px; line-height: 1.4; }
+  #status { font-size: 12px; opacity: .8; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.15); }
+
+  #pdfCanvas { width: 100%; height: auto; display: block; background: #111827; }
+
+  .footer { padding: 8px 20px 20px; color: #c7d2fe; font-size: 12px; opacity: .85; }
+
+  @media (max-width: 980px) {
+    .split { grid-template-columns: 1fr; height: auto; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Secretaires</h1>
+</header>
+
+<div class="controls">
+  <div class="group">
+    <label for="pdfFile">Importer PDF image</label>
+    <input type="file" id="pdfFile" accept="application/pdf" />
+  </div>
+
+  <div class="group">
+    <label for="pageNumber">Page</label>
+    <input type="number" id="pageNumber" min="1" value="1" />
+    <span>/ <span id="pageCount">0</span></span>
+    <input type="range" id="pageSlider" min="1" value="1" step="1" style="width: 200px;" />
+  </div>
+
+  <div class="group">
+    <label for="lang">Langue OCR</label>
+    <select id="lang">
+      <option value="eng" selected>English (eng)</option>
+      <option value="fra">Français (fra)</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <label for="zoom">Zoom rendu</label>
+    <input type="range" id="zoom" min="1" max="3" step="0.25" value="2" />
+    <span id="zoomVal">2.00×</span>
+  </div>
+
+<div class="group">
+  <button id="rerunOcr" disabled>Relancer l'OCR</button>
+  <button id="aiCorrectionBtn" disabled>Corriger avec IA</button>
+  <button id="downloadCsvBtn" disabled>Télécharger CSV</button>
+</div>
+</div>
+
+
+<div class="split">
+  <section class="panel">
+    <h3>Prévisualisation PDF</h3>
+    <div class="body">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </section>
+  <section class="panel">
+    <h3>Transcription OCR (page courante)</h3>
+    <div class="body" id="ocrText"></div>
+    <div id="status">Ouvrez un PDF image pour commencer.</div>
+  </section>
+</div>
+
+<div class="footer">
+  Astuces : • Pour de meilleurs résultats, augmentez le zoom rendu (2× à 3×). • La première reconnaissance télécharge les données de langue depuis le CDN (connexion requise).
+</div>
+
+<!-- Librairies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.6.0/build/index.js"></script>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const fileInput = $('#pdfFile');
+const pageNumber = $('#pageNumber');
+const pageSlider = $('#pageSlider');
+const pageCountEl = $('#pageCount');
+const pdfCanvas = $('#pdfCanvas');
+const ocrText = $('#ocrText');
+const statusEl = $('#status');
+const langSel = $('#lang');
+const zoom = $('#zoom');
+const zoomVal = $('#zoomVal');
+const rerunBtn = $('#rerunOcr');
+const aiBtn = $('#aiCorrectionBtn');
+//const downloadBtn = $('#downloadDocxBtn');
+const downloadBtn = $('#downloadCsvBtn');
+
+let pdfDoc = null;
+let currentPage = 1;
+let scale = 2.0;
+let pageCount = 0;
+const pageCache = new Map();
+
+// --------- PDF Handling ----------
+fileInput.addEventListener('change', openPdf);
+pageNumber.addEventListener('change', onPageNumberChange);
+pageSlider.addEventListener('input', onPageSliderChange);
+langSel.addEventListener('change', () => runOcr(true));
+zoom.addEventListener('input', () => { scale=parseFloat(zoom.value); zoomVal.textContent=scale.toFixed(2)+'×'; if(pdfDoc) renderAndOcr(currentPage,false); });
+rerunBtn.addEventListener('click', ()=>runOcr(true));
+aiBtn.addEventListener('click', async ()=>{ ocrText.textContent = await applyAiCorrection(ocrText.textContent); });
+// Modification de la ligne qui gère l'événement click
+// Ancienne ligne : downloadBtn.addEventListener('click', downloadDocx);
+
+downloadBtn.addEventListener('click', downloadCsv);
+
+// --------- Open PDF ----------
+async function openPdf(){
+  resetUI();
+  const file = fileInput.files[0];
+  if(!file) return;
+  const buf = await file.arrayBuffer();
+  const task = pdfjsLib.getDocument({ data: buf });
+  statusEl.textContent = 'Chargement du PDF…';
+  try{
+    pdfDoc = await task.promise;
+    pageCount = pdfDoc.numPages;
+    pageCountEl.textContent = pageCount;
+    pageNumber.value = 1;
+    pageSlider.max = pageCount;
+    pageSlider.value = 1;
+    rerunBtn.disabled=false; aiBtn.disabled=false; downloadBtn.disabled=false;
+    statusEl.textContent = `PDF chargé (${pageCount} page${pageCount>1?'s':''}). Rendu + OCR en cours…`;
+    await renderAndOcr(1,true);
+  }catch(e){ statusEl.textContent='Erreur de chargement du PDF : '+e.message; }
+}
+
+// --------- Render Page ----------
+async function renderPage(num){
+  const page = await pdfDoc.getPage(num);
+  const viewport = page.getViewport({scale});
+  const ctx = pdfCanvas.getContext('2d');
+  pdfCanvas.width = Math.floor(viewport.width);
+  pdfCanvas.height = Math.floor(viewport.height);
+  await page.render({canvasContext:ctx, viewport}).promise;
+}
+
+function cacheKey(num=currentPage){ return `${num}-${langSel.value}-${scale.toFixed(2)}`; }
+
+// --------- OCR + IA ----------
+async function applyAiCorrection(text){
+  if(document.getElementById("lang").value !== "eng") return text;
+  try{
+    const resp = await fetch("https://api.languagetool.org/v2/check", {
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({ text: text, language:"en-US" })
+    });
+    const result = await resp.json();
+    let corrected = text;
+    result.matches.sort((a,b)=>b.offset - a.offset).forEach(m=>{
+      if(m.replacements && m.replacements.length>0)
+        corrected = corrected.slice(0,m.offset) + m.replacements[0].value + corrected.slice(m.offset+m.length);
+    });
+    return corrected;
+  }catch(e){ console.warn("Erreur LanguageTool :",e); return text; }
+}
+
+async function runOcr(force=false){
+  const key = cacheKey();
+  if(!force && pageCache.has(key)){
+    ocrText.textContent = pageCache.get(key);
+    statusEl.textContent='Affiché depuis le cache.';
+    return;
+  }
+  statusEl.textContent='OCR en cours…';
+  try{
+    const { data } = await Tesseract.recognize(pdfCanvas, langSel.value, {
+      logger: m => { if(m.status) statusEl.textContent = `${m.status} ${m.progress?Math.round(m.progress*100)+'%':''}`; }
+    });
+    let text = (data && data.text ? data.text.trim() : '');
+    text = await applyAiCorrection(text);
+    pageCache.set(key,text);
+    ocrText.textContent = text || '(aucun texte détecté)';
+    statusEl.textContent='OCR terminé.';
+  }catch(e){ statusEl.textContent='Erreur OCR : '+e.message; }
+}
+
+async function renderAndOcr(num, forceOcr=false){ currentPage=num; await renderPage(num); await runOcr(forceOcr); }
+
+function onPageNumberChange(){ let num=parseInt(pageNumber.value,10)||1; num=Math.min(Math.max(1,num),pageCount||1); pageNumber.value=num; pageSlider.value=num; if(pdfDoc) renderAndOcr(num,false); }
+function onPageSliderChange(){ const num=parseInt(pageSlider.value,10)||1; pageNumber.value=num; if(pdfDoc) renderAndOcr(num,false); }
+
+function resetUI(){
+  pdfDoc=null; currentPage=1; pageCount=0; pageCache.clear();
+  pageNumber.value=1; pageSlider.value=1; pageCountEl.textContent='0';
+  ocrText.textContent=''; statusEl.textContent='Ouvrez un PDF image pour commencer.';
+  rerunBtn.disabled=true; aiBtn.disabled=true; downloadBtn.disabled=true;
+  const ctx = pdfCanvas.getContext('2d'); ctx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+}
+// --------- CSV Download ----------
+async function downloadCsv(){
+  if(!pdfDoc) return;
+  statusEl.textContent='Génération CSV…';
+  const allText = [];
+
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    statusEl.textContent=`OCR page ${i}/${pdfDoc.numPages}…`;
+    await renderPage(i);
+    let key = `${i}-${langSel.value}-${scale.toFixed(2)}`;
+    let text = pageCache.get(key) || '';
+
+    // Si le texte n'est pas en cache, effectuez l'OCR
+    if(!text){
+      const { data } = await Tesseract.recognize(pdfCanvas, langSel.value);
+      text = (data && data.text ? data.text.trim() : '');
+      text = await applyAiCorrection(text);
+      pageCache.set(key, text);
+    }
+
+    // Remplacez les sauts de ligne pour éviter les erreurs de format CSV et ajoutez des guillemets
+    // pour garantir que le texte soit considéré comme une seule cellule
+    const cleanedText = `"${text.replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+    allText.push(cleanedText);
+  }
+
+  // Joignez tous les textes de page en une seule ligne CSV
+  const csvContent = allText.join(',');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'OCR_result.csv';
+  link.click();
+
+  statusEl.textContent='CSV téléchargé !';
+}
+// --------- DOCX Download ----------
+async function downloadDocx(){
+  if(!pdfDoc) return;
+  statusEl.textContent='Génération DOCX…';
+  const { Document, Packer, Paragraph } = docx;
+  const doc = new Document({ sections: [] });
+
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    statusEl.textContent=`OCR page ${i}/${pdfDoc.numPages}…`;
+    await renderPage(i);
+    let key = `${i}-${langSel.value}-${scale.toFixed(2)}`;
+    let text = pageCache.get(key) || '';
+    if(!text){
+      const { data } = await Tesseract.recognize(pdfCanvas, langSel.value);
+      text = (data && data.text ? data.text.trim() : '');
+      text = await applyAiCorrection(text);
+      pageCache.set(key,text);
+    }
+    doc.addSection({ children: [ new Paragraph(text) ] });
+  }
+
+  const blob = await Packer.toBlob(doc);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'OCR_result.docx';
+  link.click();
+  statusEl.textContent='DOCX téléchargé !';
+}
+</script>
+</body>
+</html>

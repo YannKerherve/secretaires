@@ -1,0 +1,307 @@
+<!-- Created: 26/08/2025 by Yann Kerhervé -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Secretaires</title>
+<link rel="icon" type="image/png" href="facion.png">
+<style>
+  :root {
+    --bg: #f4f4f4;
+    --panel: #fff;
+    --muted: #666;
+    --accent: #007bff;
+    --radius: 8px;
+    --shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: #333;
+  }
+
+  header {
+    text-align: center;
+    padding: 16px 20px;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 20px;
+  }
+
+  header h1 {
+    font-size: 22px;
+    margin: 0;
+    font-weight: bold;
+    color: #444;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .controls .group {
+    background: var(--panel);
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow);
+    border: 1px solid #ddd;
+  }
+
+  label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  input[type="number"] {
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    background: #fafafa;
+    color: #333;
+    padding: 6px 8px;
+    min-width: 72px;
+    font-size: 14px;
+  }
+
+  input[type="range"] {
+    accent-color: var(--accent);
+  }
+
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s, opacity 0.3s;
+  }
+
+  button:hover:enabled {
+    background-color: #0056b3;
+  }
+
+  button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    gap: 20px;
+    padding: 0 20px 24px;
+    height: calc(100vh - 100px);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-shadow: var(--shadow);
+    border: 1px solid #ddd;
+  }
+
+  .panel h3 {
+    margin: 0;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+    letter-spacing: .3px;
+    color: var(--muted);
+    background: #fafafa;
+  }
+
+  .panel .body {
+    padding: 12px;
+    overflow: auto;
+    flex: 1;
+  }
+
+  #ocrText {
+    white-space: pre-wrap;
+    font-family: Consolas, Monaco, "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+  }
+
+  #status {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-top: 1px solid #eee;
+    background: #fafafa;
+  }
+
+  #pdfCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 16px;
+    color: #888;
+    font-size: 0.8em;
+    border-top: 2px solid #eee;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 980px) {
+    .split {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+  }
+</style>
+
+</head>
+<body>
+<!--<header><h1>Secretaires</h1></header>-->
+
+<div class="controls">
+  <div class="group">
+    <label for="pageNumber">Page</label>
+    <input type="number" id="pageNumber" min="1" value="1" />
+    <span>/ <span id="pageCount">0</span></span>
+    <input type="range" id="pageSlider" min="1" value="1" step="1" style="width:200px;" />
+  </div>
+  <div class="group">
+    <label for="zoom">Zoom rendu</label>
+    <input type="range" id="zoom" min="1" max="3" step="0.25" value="2" />
+    <span id="zoomVal">2.00×</span>
+  </div>
+  <div class="group">
+    <button id="rerunOcr" disabled>Relancer l'OCR</button>
+    <button id="aiCorrectionBtn" disabled>Corriger avec IA</button>
+  </div>
+</div>
+
+<div class="split">
+  <section class="panel">
+    <h3>Prévisualisation PDF</h3>
+    <div class="body"><canvas id="pdfCanvas"></canvas></div>
+  </section>
+  <section class="panel">
+    <h3>Transcription OCR (page courante)</h3>
+    <div class="body" id="ocrText"></div>
+    <div id="status">Spécifiez un PDF via l’URL ?pdf=fichier.pdf</div>
+  </section>
+</div>
+
+<div class="footer">
+  Astuce : ajoutez `?pdf=monlivre.pdf&page=3` dans l’URL pour ouvrir directement la page 3.
+</div>
+
+<!-- Librairies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";</script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script>
+const $=sel=>document.querySelector(sel);
+const pageNumber=$('#pageNumber'), pageSlider=$('#pageSlider'), pageCountEl=$('#pageCount');
+const pdfCanvas=$('#pdfCanvas'), ocrText=$('#ocrText'), statusEl=$('#status');
+const zoom=$('#zoom'), zoomVal=$('#zoomVal');
+const rerunBtn=$('#rerunOcr'), aiBtn=$('#aiCorrectionBtn');
+
+let pdfDoc=null, currentPage=1, scale=2.0, pageCount=0;
+const pageCache=new Map();
+
+// --------- URL Params ----------
+const params=new URLSearchParams(window.location.search);
+const pdfUrl=params.get('pdf');
+let startPage=parseInt(params.get('page')||'1',10);
+
+// --------- PDF Handling ----------
+pageNumber.addEventListener('change', onPageNumberChange);
+pageSlider.addEventListener('input', onPageSliderChange);
+zoom.addEventListener('input', ()=>{scale=parseFloat(zoom.value);zoomVal.textContent=scale.toFixed(2)+'×';if(pdfDoc) renderAndOcr(currentPage,false);});
+rerunBtn.addEventListener('click',()=>runOcr(true));
+aiBtn.addEventListener('click',async()=>{ocrText.textContent=await applyAiCorrection(ocrText.textContent);});
+
+if(pdfUrl){ openPdf(pdfUrl); }
+
+// --------- Open PDF ----------
+async function openPdf(url){
+  resetUI();
+  const task=pdfjsLib.getDocument(url);
+  statusEl.textContent='Chargement du PDF…';
+  try{
+    pdfDoc=await task.promise;
+    pageCount=pdfDoc.numPages;
+    pageCountEl.textContent=pageCount;
+    startPage=Math.min(Math.max(1,startPage),pageCount);
+    pageNumber.value=startPage;
+    pageSlider.max=pageCount; pageSlider.value=startPage;
+    rerunBtn.disabled=false; aiBtn.disabled=false;
+    statusEl.textContent=`PDF chargé (${pageCount} pages). Rendu + OCR…`;
+    await renderAndOcr(startPage,true);
+  }catch(e){ statusEl.textContent='Erreur de chargement : '+e.message; }
+}
+
+// --------- Render ----------
+async function renderPage(num){
+  const page=await pdfDoc.getPage(num);
+  const viewport=page.getViewport({scale});
+  const ctx=pdfCanvas.getContext('2d');
+  pdfCanvas.width=Math.floor(viewport.width);
+  pdfCanvas.height=Math.floor(viewport.height);
+  await page.render({canvasContext:ctx,viewport}).promise;
+}
+function cacheKey(num=currentPage){ return `${num}-eng-${scale.toFixed(2)}`; }
+
+// --------- OCR ----------
+async function applyAiCorrection(text){
+  try{
+    const resp=await fetch("https://api.languagetool.org/v2/check",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({text:text,language:"en-US"})});
+    const result=await resp.json();
+    let corrected=text;
+    result.matches.sort((a,b)=>b.offset-a.offset).forEach(m=>{
+      if(m.replacements && m.replacements.length>0)
+        corrected=corrected.slice(0,m.offset)+m.replacements[0].value+corrected.slice(m.offset+m.length);
+    });
+    return corrected;
+  }catch(e){console.warn("Erreur LanguageTool:",e);return text;}
+}
+async function runOcr(force=false){
+  const key=cacheKey();
+  if(!force && pageCache.has(key)){ ocrText.textContent=pageCache.get(key); statusEl.textContent='Depuis cache.'; return; }
+  statusEl.textContent='OCR en cours…';
+  try{
+    const {data}=await Tesseract.recognize(pdfCanvas,'eng',{logger:m=>{if(m.status)statusEl.textContent=`${m.status} ${m.progress?Math.round(m.progress*100)+'%':''}`;}});
+    let text=(data && data.text ? data.text.trim() : '');
+    text=await applyAiCorrection(text);
+    pageCache.set(key,text);
+    ocrText.textContent=text||'(aucun texte détecté)';
+    statusEl.textContent='OCR terminé.';
+  }catch(e){ statusEl.textContent='Erreur OCR : '+e.message; }
+}
+async function renderAndOcr(num,forceOcr=false){currentPage=num;await renderPage(num);await runOcr(forceOcr);}
+function onPageNumberChange(){let num=parseInt(pageNumber.value,10)||1;num=Math.min(Math.max(1,num),pageCount||1);pageNumber.value=num;pageSlider.value=num;if(pdfDoc)renderAndOcr(num,false);}
+function onPageSliderChange(){const num=parseInt(pageSlider.value,10)||1;pageNumber.value=num;if(pdfDoc)renderAndOcr(num,false);}
+function resetUI(){pdfDoc=null;currentPage=1;pageCount=0;pageCache.clear();pageNumber.value=1;pageSlider.value=1;pageCountEl.textContent='0';ocrText.textContent='';statusEl.textContent='Spécifiez un PDF via l’URL ?pdf=fichier.pdf';rerunBtn.disabled=true;aiBtn.disabled=true;const ctx=pdfCanvas.getContext('2d');ctx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);}
+</script>
+</body>
+</html>
